@@ -25,7 +25,7 @@ const INVALID_DOMAINS = [
 
 const PLACES_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY
 const OPENAI_KEY  = import.meta.env.VITE_OPENAI_API_KEY
-const MAPS_BASE   = import.meta.env.DEV ? '/maps' : 'https://maps.googleapis.com'
+const MAPS_BASE   = import.meta.env.DEV ? '/maps' : '/api/maps'
 
 /* ── Utilities ── */
 
