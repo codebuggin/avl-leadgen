@@ -764,8 +764,10 @@ export default function App() {
       let placeIds = []
       try {
         const url = `${MAPS_BASE}/maps/api/place/textsearch/json?query=${encodeURIComponent(niche + ' in ' + city)}`
+        console.log('Fetching:', url)
         const res  = await fetch(url)
         const data = await res.json()
+        console.log('Results:', data.results?.length, '| status:', data.status)
         if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
           setError(`API Error (${data.status}): ${data.error_message || 'Check billing and API restrictions in Google Cloud Console.'}`)
           break
@@ -802,6 +804,7 @@ export default function App() {
           const url  = `${MAPS_BASE}/maps/api/place/details/json?place_id=${placeIds[i]}&fields=${fields}`
           const res  = await fetch(url)
           const data = await res.json()
+          console.log('Details:', data.result?.name, '| status:', data.status)
           if (data.status === 'OK' && data.result) {
             const r      = data.result
             const status = classifyWebsite(r.website)
