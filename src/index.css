@@ -1,0 +1,66 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0d0d0d;
+  --surface: #141414;
+  --surface-2: #1a1a1a;
+  --border: #222;
+  --border-2: #2a2a2a;
+  --text: #c8c8c8;
+  --text-dim: #666;
+  --text-bright: #f0f0f0;
+  --accent: #b4ff4e;
+  --accent-dim: rgba(180, 255, 78, 0.12);
+  --accent-border: rgba(180, 255, 78, 0.3);
+  --red: #ff4e4e;
+  --red-dim: rgba(255, 78, 78, 0.12);
+  --yellow: #ffcc4e;
+  --yellow-dim: rgba(255, 204, 78, 0.12);
+  --green: #4eff8f;
+  --green-dim: rgba(78, 255, 143, 0.12);
+  --mono: 'IBM Plex Mono', 'Courier New', monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: var(--mono);
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input, select, textarea {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
