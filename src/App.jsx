@@ -23,7 +23,6 @@ const INVALID_DOMAINS = [
   'maps.google.com', 'linktr.ee', 'linkinbio', 'wa.me', 'whatsapp.com'
 ]
 
-const PLACES_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY
 const OPENAI_KEY  = import.meta.env.VITE_OPENAI_API_KEY
 const MAPS_BASE   = import.meta.env.DEV ? '/maps' : '/api/maps'
 
@@ -745,7 +744,6 @@ export default function App() {
   }
 
   const startScan = useCallback(async () => {
-    if (!PLACES_KEY) { setError('VITE_GOOGLE_PLACES_API_KEY is not set in .env'); return }
     if (!niche)      { setError('Please select or enter a niche.'); return }
     const allCities = [...selectedCities, ...customCities]
     if (allCities.length === 0) { setError('Please select or enter at least one city.'); return }
@@ -765,11 +763,11 @@ export default function App() {
 
       let placeIds = []
       try {
-        const url = `${MAPS_BASE}/maps/api/place/textsearch/json?query=${encodeURIComponent(niche + ' in ' + city)}&key=${PLACES_KEY}`
+        const url = `${MAPS_BASE}/maps/api/place/textsearch/json?query=${encodeURIComponent(niche + ' in ' + city)}`
         const res  = await fetch(url)
         const data = await res.json()
         if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-          setError(`API Error (${data.status}): ${data.error_message || 'Check your API key and billing.'}`)
+          setError(`API Error (${data.status}): ${data.error_message || 'Check billing and API restrictions in Google Cloud Console.'}`)
           break
         }
         placeIds = (data.results || []).map(r => r.place_id)
@@ -781,7 +779,7 @@ export default function App() {
           await delay(2000)
           setStatusMsg(`Loading page ${pageCount + 1} for ${city}…`)
           try {
-            const pageRes  = await fetch(`${MAPS_BASE}/maps/api/place/textsearch/json?pagetoken=${nextToken}&key=${PLACES_KEY}`)
+            const pageRes  = await fetch(`${MAPS_BASE}/maps/api/place/textsearch/json?pagetoken=${nextToken}`)
             const pageData = await pageRes.json()
             if (pageData.status === 'OK') {
               placeIds  = [...placeIds, ...(pageData.results || []).map(r => r.place_id)]
@@ -801,7 +799,7 @@ export default function App() {
         if (abortRef.current) break
         try {
           const fields = 'name,website,formatted_phone_number,international_phone_number,rating,formatted_address,user_ratings_total,opening_hours,business_status'
-          const url  = `${MAPS_BASE}/maps/api/place/details/json?place_id=${placeIds[i]}&fields=${fields}&key=${PLACES_KEY}`
+          const url  = `${MAPS_BASE}/maps/api/place/details/json?place_id=${placeIds[i]}&fields=${fields}`
           const res  = await fetch(url)
           const data = await res.json()
           if (data.status === 'OK' && data.result) {
