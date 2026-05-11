@@ -25,6 +25,7 @@ const INVALID_DOMAINS = [
 
 const PLACES_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY
 const OPENAI_KEY  = import.meta.env.VITE_OPENAI_API_KEY
+const MAPS_BASE   = import.meta.env.DEV ? '/maps' : 'https://maps.googleapis.com'
 
 /* ── Utilities ── */
 
@@ -764,7 +765,7 @@ export default function App() {
 
       let placeIds = []
       try {
-        const url = `/maps/maps/api/place/textsearch/json?query=${encodeURIComponent(niche + ' in ' + city)}&key=${PLACES_KEY}`
+        const url = `${MAPS_BASE}/maps/api/place/textsearch/json?query=${encodeURIComponent(niche + ' in ' + city)}&key=${PLACES_KEY}`
         const res  = await fetch(url)
         const data = await res.json()
         if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
@@ -780,7 +781,7 @@ export default function App() {
           await delay(2000)
           setStatusMsg(`Loading page ${pageCount + 1} for ${city}…`)
           try {
-            const pageRes  = await fetch(`/maps/maps/api/place/textsearch/json?pagetoken=${nextToken}&key=${PLACES_KEY}`)
+            const pageRes  = await fetch(`${MAPS_BASE}/maps/api/place/textsearch/json?pagetoken=${nextToken}&key=${PLACES_KEY}`)
             const pageData = await pageRes.json()
             if (pageData.status === 'OK') {
               placeIds  = [...placeIds, ...(pageData.results || []).map(r => r.place_id)]
@@ -800,7 +801,7 @@ export default function App() {
         if (abortRef.current) break
         try {
           const fields = 'name,website,formatted_phone_number,international_phone_number,rating,formatted_address,user_ratings_total,opening_hours,business_status'
-          const url  = `/maps/maps/api/place/details/json?place_id=${placeIds[i]}&fields=${fields}&key=${PLACES_KEY}`
+          const url  = `${MAPS_BASE}/maps/api/place/details/json?place_id=${placeIds[i]}&fields=${fields}&key=${PLACES_KEY}`
           const res  = await fetch(url)
           const data = await res.json()
           if (data.status === 'OK' && data.result) {
