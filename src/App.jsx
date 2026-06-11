@@ -111,6 +111,7 @@ async function scoreLeadWithAI(lead) {
 {
   "score": (0-10 integer, 10 = hottest lead),
   "reason": (one short sentence why),
+  "angle": (the angle you chose — one of: No Website / Outdated Website / Reputation Growth / More Customer Inquiries / Better Customer Experience / Competitive Advantage / Trust Building / Appointment Booking),
   "pitch": (see instructions below)
 }
 
@@ -151,6 +152,64 @@ Rules:
     return JSON.parse(match ? match[0] : content)
   } catch (_) {
     return {}
+  }
+}
+
+const PITCH_ANGLES = [
+  { key: 'No Website',                  label: 'No Site'    },
+  { key: 'Outdated Website',            label: 'Outdated'   },
+  { key: 'Reputation Growth',           label: 'Reputation' },
+  { key: 'More Customer Inquiries',     label: 'Inquiries'  },
+  { key: 'Better Customer Experience',  label: 'Experience' },
+  { key: 'Competitive Advantage',       label: 'Competitive'},
+  { key: 'Trust Building',              label: 'Trust'      },
+  { key: 'Appointment Booking',         label: 'Booking'    },
+]
+
+async function generateAnglePitch(lead, angle) {
+  if (!OPENAI_KEY) return ''
+  const websiteLabel =
+    lead.status === 'no-website' ? 'No real website (only social media or directory listing)' :
+    lead.status === 'outdated'   ? 'Outdated or template-based website' :
+                                   'Has a proper website'
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 200,
+        messages: [
+          {
+            role: 'system',
+            content: `You are an outreach executive at AVL Innovations, a web design company based in Hyderabad that builds custom websites using React, Next.js, and Tailwind — never templates. You reach out to local businesses on behalf of the founders. Your tone is direct, human, and conversational — like a sharp founder texting someone, not a marketing agency sending a campaign. Write in plain professional English only. Do not use any Hindi, Urdu, or mixed language words.`,
+          },
+          {
+            role: 'user',
+            content: `Write a WhatsApp outreach message for this business using the "${angle}" angle.
+
+Business:
+- Name: ${lead.name}
+- Niche: ${lead.niche}
+- City: ${lead.city}
+- Rating: ${lead.rating ?? 'unknown'} stars (${lead.userRatingsTotal ?? 0} reviews)
+- Website status: ${websiteLabel}
+
+Rules:
+- 40–90 words.
+- Sound human. Sound like a founder texting, not an agency pitching.
+- Reference at least one specific detail from the lead data.
+- End with a soft CTA (e.g. "Would you be open to seeing a few ideas?", "Happy to share some suggestions if useful.", "Curious to hear your thoughts.").
+- Never use: "We specialize in", "Tailored to your needs", "Establish your online presence", "Cutting-edge solutions", "Transform your business", "Innovative digital solutions", "We are reaching out from".
+- Output only the message text. No labels. No markdown. No explanations.`,
+          },
+        ],
+      }),
+    })
+    const data = await res.json()
+    return data.choices?.[0]?.message?.content?.trim() || ''
+  } catch {
+    return ''
   }
 }
 
@@ -321,22 +380,33 @@ function MiniSpinner() {
 }
 
 function LeadCard({ lead, onDeploySuccess }) {
-  const [hovered, setHovered]       = useState(false)
-  const [pitchOpen, setPitchOpen]   = useState(false)
-  const [copied, setCopied]         = useState(false)
-  const [deployState, setDeployState] = useState('idle') // 'idle' | 'loading' | 'done'
-  const [deployUrl, setDeployUrl]   = useState(null)
-  const [deployError, setDeployError] = useState(null)
-  const [localPitch, setLocalPitch] = useState(null)
+  const [hovered, setHovered]           = useState(false)
+  const [copied, setCopied]             = useState(false)
+  const [deployState, setDeployState]   = useState('idle')
+  const [deployUrl, setDeployUrl]       = useState(null)
+  const [deployError, setDeployError]   = useState(null)
+  const [selectedAngle, setSelectedAngle] = useState(() => lead.angle || null)
+  const [anglePitches, setAnglePitches]   = useState(() =>
+    lead.pitch && lead.angle ? { [lead.angle]: lead.pitch } : {}
+  )
 
-  // Use locally overridden pitch (post-deploy) if available
-  const effectivePitch = localPitch ?? lead.pitch
+  const currentPitch   = selectedAngle ? anglePitches[selectedAngle] : null
+  const effectivePitch = currentPitch && currentPitch !== 'loading' ? currentPitch : null
   const wa = effectivePitch && lead.internationalPhone
     ? waUrl(lead.internationalPhone, effectivePitch) : null
 
   const canDeploy = lead.status === 'no-website' || lead.status === 'outdated'
 
+  async function handleAngleClick(angle) {
+    setSelectedAngle(angle)
+    if (anglePitches[angle] !== undefined) return
+    setAnglePitches(prev => ({ ...prev, [angle]: 'loading' }))
+    const pitch = await generateAnglePitch(lead, angle)
+    setAnglePitches(prev => ({ ...prev, [angle]: pitch || 'Could not generate pitch.' }))
+  }
+
   function copyPitch() {
+    if (!effectivePitch) return
     navigator.clipboard.writeText(effectivePitch).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -365,10 +435,13 @@ function LeadCard({ lead, onDeploySuccess }) {
       if (!url) throw new Error('No URL returned')
       setDeployUrl(url)
       setDeployState('done')
-      const updatedPitch = lead.pitch
-        ? `${lead.pitch}\n\nWe built a free demo of your website: ${url} — take a look!`
+      const base = effectivePitch || lead.pitch
+      const updatedPitch = base
+        ? `${base}\n\nWe built a free demo of your website: ${url} — take a look!`
         : null
-      if (updatedPitch) setLocalPitch(updatedPitch)
+      if (updatedPitch && selectedAngle) {
+        setAnglePitches(prev => ({ ...prev, [selectedAngle]: updatedPitch }))
+      }
       onDeploySuccess?.({
         id:                lead.id,
         name:              lead.name,
@@ -473,58 +546,82 @@ function LeadCard({ lead, onDeploySuccess }) {
         )}
       </div>
 
-      {/* Pitch + WhatsApp section */}
-      {effectivePitch && (
+      {/* Pitch Angles section */}
+      {lead.score != null && (
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {/* Action row */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setPitchOpen(o => !o)}
-              style={{
-                fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)',
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: 0, display: 'flex', alignItems: 'center', gap: 5,
-              }}
-            >
-              {pitchOpen ? '▾ Hide Pitch' : '▸ View Pitch'}
-            </button>
-            {wa && (
-              <a href={wa} target="_blank" rel="noreferrer"
-                 style={{
-                   fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 500,
-                   padding: '3px 10px', borderRadius: 4,
-                   background: 'var(--accent-dim)', color: 'var(--accent)',
-                   border: '1px solid var(--accent-border)',
-                   textDecoration: 'none', whiteSpace: 'nowrap',
-                 }}>
-                WhatsApp ↗
-              </a>
-            )}
+          {/* Angle tabs */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {PITCH_ANGLES.map(({ key, label }) => {
+              const isActive  = selectedAngle === key
+              const isLoaded  = anglePitches[key] && anglePitches[key] !== 'loading'
+              const isLoading = anglePitches[key] === 'loading'
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleAngleClick(key)}
+                  style={{
+                    fontFamily: 'var(--mono)', fontSize: 10, padding: '3px 9px',
+                    borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap',
+                    background: isActive ? 'var(--accent-dim)' : 'var(--surface-2)',
+                    color: isActive ? 'var(--accent)' : isLoaded ? 'var(--text)' : 'var(--text-dim)',
+                    border: `1px solid ${isActive ? 'var(--accent-border)' : 'var(--border)'}`,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {isLoading && isActive ? '…' : label}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Expanded pitch */}
-          {pitchOpen && (
+          {/* Pitch display */}
+          {selectedAngle && (
             <div style={{
               background: 'var(--surface-2)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius)', padding: '10px 12px',
               display: 'flex', flexDirection: 'column', gap: 10,
             }}>
-              <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
-                {effectivePitch}
-              </div>
-              <button
-                onClick={copyPitch}
-                style={{
-                  fontFamily: 'var(--mono)', fontSize: 11, padding: '4px 12px',
-                  borderRadius: 4, alignSelf: 'flex-start',
-                  background: copied ? 'var(--green-dim)' : 'var(--surface)',
-                  color: copied ? 'var(--green)' : 'var(--text-dim)',
-                  border: `1px solid ${copied ? 'rgba(78,255,143,0.4)' : 'var(--border)'}`,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}
-              >
-                {copied ? '✓ Copied!' : '⧉ Copy'}
-              </button>
+              {currentPitch === 'loading' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MiniSpinner />
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+                    Generating {selectedAngle} pitch…
+                  </span>
+                </div>
+              ) : effectivePitch ? (
+                <>
+                  <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                    {effectivePitch}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {wa && (
+                      <a href={wa} target="_blank" rel="noreferrer"
+                         style={{
+                           fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 500,
+                           padding: '3px 10px', borderRadius: 4,
+                           background: 'var(--accent-dim)', color: 'var(--accent)',
+                           border: '1px solid var(--accent-border)',
+                           textDecoration: 'none', whiteSpace: 'nowrap',
+                         }}>
+                        WhatsApp ↗
+                      </a>
+                    )}
+                    <button
+                      onClick={copyPitch}
+                      style={{
+                        fontFamily: 'var(--mono)', fontSize: 11, padding: '3px 10px',
+                        borderRadius: 4,
+                        background: copied ? 'var(--green-dim)' : 'var(--surface)',
+                        color: copied ? 'var(--green)' : 'var(--text-dim)',
+                        border: `1px solid ${copied ? 'rgba(78,255,143,0.4)' : 'var(--border)'}`,
+                        cursor: 'pointer', transition: 'all 0.2s',
+                      }}
+                    >
+                      {copied ? '✓ Copied!' : '⧉ Copy'}
+                    </button>
+                  </div>
+                </>
+              ) : null}
             </div>
           )}
         </div>
@@ -847,6 +944,7 @@ export default function App() {
               score: null,
               reason: null,
               pitch: null,
+              angle: null,
             }
             setStatusMsg(`Fetching details: ${r.name}`)
             collectedLeads.push(lead)
