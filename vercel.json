@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/api/maps/(.*)", "destination": "/api/maps" },
+    { "source": "/api/openai", "destination": "/api/openai" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

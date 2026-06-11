@@ -23,7 +23,7 @@ const INVALID_DOMAINS = [
   'maps.google.com', 'linktr.ee', 'linkinbio', 'wa.me', 'whatsapp.com'
 ]
 
-const OPENAI_KEY  = import.meta.env.VITE_OPENAI_API_KEY
+const OPENAI_PROXY = '/api/openai'
 const MAPS_BASE   = import.meta.env.DEV ? '/maps' : '/api/maps'
 
 /* ── Utilities ── */
@@ -84,18 +84,14 @@ function toCSV(leads) {
 }
 
 async function scoreLeadWithAI(lead) {
-  if (!OPENAI_KEY) return {}
   const websiteLabel =
     lead.status === 'no-website' ? 'No real website (only has social media or directory listing)' :
     lead.status === 'outdated'   ? 'Outdated or template-based website' :
                                    'Has a proper website'
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(OPENAI_PROXY, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         max_tokens: 500,
@@ -155,15 +151,14 @@ const PITCH_ANGLES = [
 ]
 
 async function generateAnglePitch(lead, angle) {
-  if (!OPENAI_KEY) return ''
   const websiteLabel =
     lead.status === 'no-website' ? 'No real website (only social media or directory listing)' :
     lead.status === 'outdated'   ? 'Outdated or template-based website' :
                                    'Has a proper website'
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(OPENAI_PROXY, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         max_tokens: 200,
@@ -944,7 +939,7 @@ export default function App() {
     }
 
     // ── Phase 2: AI Scoring ──
-    if (!abortRef.current && collectedLeads.length > 0 && OPENAI_KEY) {
+    if (!abortRef.current && collectedLeads.length > 0) {
       setPhase('ai')
 
       // Auto-score permanently closed businesses immediately — skip AI for them
@@ -991,7 +986,6 @@ export default function App() {
     } else {
       setStatusMsg(
         abortRef.current ? 'Scan stopped.' :
-        !OPENAI_KEY      ? `Done — ${collectedLeads.length} leads found (set VITE_OPENAI_API_KEY to enable AI scoring)` :
                            `Done — ${collectedLeads.length} leads found`
       )
     }
