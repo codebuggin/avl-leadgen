@@ -99,6 +99,7 @@ async function scoreLeadWithAI(lead) {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         max_tokens: 500,
+        response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
@@ -146,7 +147,8 @@ Rules:
     const data = await res.json()
     const content = data.choices?.[0]?.message?.content?.trim()
     if (!content) return {}
-    return JSON.parse(content)
+    const match = content.match(/\{[\s\S]*\}/)
+    return JSON.parse(match ? match[0] : content)
   } catch (_) {
     return {}
   }
