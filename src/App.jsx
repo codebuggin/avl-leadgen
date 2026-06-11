@@ -126,11 +126,19 @@ Website: ${lead.website || 'none'}`,
       }),
     })
     const data = await res.json()
+    if (!res.ok) {
+      console.error('[AI scoring] API error:', JSON.stringify(data))
+      return {}
+    }
     const content = data.choices?.[0]?.message?.content?.trim()
+    console.log('[AI scoring] raw content:', content?.slice(0, 300))
     if (!content) return {}
     const match = content.match(/\{[\s\S]*\}/)
-    return JSON.parse(match ? match[0] : content)
-  } catch (_) {
+    const parsed = JSON.parse(match ? match[0] : content)
+    console.log('[AI scoring] parsed:', parsed)
+    return parsed
+  } catch (err) {
+    console.error('[AI scoring] exception:', err.message)
     return {}
   }
 }
