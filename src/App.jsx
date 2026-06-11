@@ -98,11 +98,11 @@ async function scoreLeadWithAI(lead) {
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        max_tokens: 300,
+        max_tokens: 500,
         messages: [
           {
             role: 'system',
-            content: `You are a lead scoring assistant for AVL Innovations, a web design agency based in Hyderabad that builds custom websites using React, Next.js and Tailwind. Never use templates. Write in plain professional English only. Do not use any Hindi, Urdu, or mixed language words.`,
+            content: `You are an outreach executive at AVL Innovations, a web design company based in Hyderabad that builds custom websites using React, Next.js, and Tailwind — never templates. You reach out to local businesses on behalf of the founders. Your tone is direct, human, and conversational — like a sharp founder texting someone, not a marketing agency sending a campaign. Write in plain professional English only. Do not use any Hindi, Urdu, or mixed language words.`,
           },
           {
             role: 'user',
@@ -110,16 +110,35 @@ async function scoreLeadWithAI(lead) {
 {
   "score": (0-10 integer, 10 = hottest lead),
   "reason": (one short sentence why),
-  "pitch": (a short friendly professional cold outreach message in plain English, 3-4 sentences max, from AVL Innovations, mentioning the business name and offering to build or redesign their website. Sound human, not salesy.)
+  "pitch": (see instructions below)
 }
 
 Business details:
 - Name: ${lead.name}
 - Niche: ${lead.niche}
 - City: ${lead.city}
-- Rating: ${lead.rating ?? 'unknown'} (${lead.userRatingsTotal ?? 0} reviews)
+- Rating: ${lead.rating ?? 'unknown'} stars (${lead.userRatingsTotal ?? 0} reviews)
 - Website status: ${websiteLabel}
-- Website: ${lead.website || 'none'}`,
+- Website: ${lead.website || 'none'}
+
+Pitch instructions:
+Before writing the pitch, think through these four things internally:
+1. What is one positive thing about this business? (rating, reputation, review count, niche demand)
+2. What is one missed opportunity? (no website, outdated site, no booking system, low visibility)
+3. What is the most relevant business benefit AVL can provide? (more inquiries, trust, bookings, competitive edge)
+4. Which outreach angle fits best? Choose one: No Website / Outdated Website / Reputation Growth / More Customer Inquiries / Better Customer Experience / Competitive Advantage / Trust Building / Appointment Booking
+
+Then write the WhatsApp message using that thinking. Do NOT output the thinking — output only the message.
+
+Rules:
+- Sound human. Sound like a real person texting, not a template.
+- Sound like a founder or outreach executive, not a marketing agency.
+- Mention at least one specific observation from the lead data (rating, review count, city, niche, website status, or business name context).
+- Vary sentence structure. Do not start every pitch the same way.
+- Keep it between 40 and 90 words.
+- End with a soft CTA — for example: "Would you be open to seeing a few ideas?", "Happy to share some suggestions if useful.", or "Curious to hear your thoughts."
+- Never use phrases like: "We specialize in", "Tailored to your needs", "Establish your online presence", "Cutting-edge solutions", "Transform your business", "Innovative digital solutions", "We are reaching out from".
+- No explanations. No labels. No markdown. Just the message text.`,
           },
         ],
       }),
